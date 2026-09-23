@@ -1,0 +1,31 @@
+# Dependências
+node_modules/
+
+# Variáveis de ambiente (NUNCA versionar — contém chaves e senhas)
+.env
+.env.*
+!.env.example
+
+# Builds
+dist/
+.next/
+out/
+*.tsbuildinfo
+next-env.d.ts
+
+# Uploads feitos pelo painel (imagens de produtos/encomendas)
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+
+# Logs
+*.log
+npm-debug.log*
+
+# Sistema / editores
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Configurações locais do Claude Code
+.claude/

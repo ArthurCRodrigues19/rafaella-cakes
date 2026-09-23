@@ -1,0 +1,143 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   Rafaella Cakes — design system
+   ============================================================ */
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-cream font-sans text-cocoa-700 antialiased;
+  }
+  h1, h2, h3, h4 {
+    @apply font-serif text-cocoa-800;
+  }
+  ::selection {
+    @apply bg-blush-200 text-cocoa-800;
+  }
+  :focus-visible {
+    @apply outline-none ring-2 ring-champagne-400 ring-offset-2 ring-offset-cream;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+  }
+}
+
+@layer components {
+  .container-page {
+    @apply mx-auto w-full max-w-6xl px-4 sm:px-6 lg:px-8;
+  }
+
+  /* ---------- botões ---------- */
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium tracking-wide
+      transition-all duration-200 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+  .btn-primary {
+    @apply btn bg-cocoa-700 text-cream shadow-card hover:bg-cocoa-800 hover:shadow-soft;
+  }
+  .btn-rose {
+    @apply btn bg-blush-600 text-white hover:bg-blush-700;
+  }
+  .btn-outline {
+    @apply btn border border-cocoa-300 bg-transparent text-cocoa-700 hover:border-cocoa-600 hover:bg-white;
+  }
+  .btn-ghost {
+    @apply btn px-4 text-cocoa-600 hover:bg-blush-100;
+  }
+  .btn-sm {
+    @apply px-4 py-2 text-xs;
+  }
+  .btn-danger {
+    @apply btn border border-red-200 bg-white text-red-700 hover:bg-red-50;
+  }
+
+  /* ---------- formulários ---------- */
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-cocoa-700;
+  }
+  .input {
+    @apply block w-full rounded-xl border border-cocoa-200 bg-white px-4 py-3 text-sm text-cocoa-800 placeholder:text-cocoa-300
+      transition focus:border-champagne-400 focus:outline-none focus:ring-2 focus:ring-champagne-200;
+  }
+  .input-error {
+    @apply border-red-300 focus:border-red-400 focus:ring-red-100;
+  }
+  .field-error {
+    @apply mt-1 text-xs text-red-700;
+  }
+  .checkbox {
+    @apply h-4 w-4 rounded border-cocoa-300 text-cocoa-700 accent-cocoa-700;
+  }
+
+  /* ---------- cartões e textos ---------- */
+  .card {
+    @apply rounded-3xl border border-blush-100 bg-white shadow-card;
+  }
+  .eyebrow {
+    @apply text-xs font-semibold uppercase tracking-[0.25em] text-champagne-600;
+  }
+  .heading-xl {
+    @apply font-serif text-4xl leading-tight text-cocoa-800 sm:text-5xl lg:text-6xl;
+  }
+  .heading-lg {
+    @apply font-serif text-3xl leading-tight text-cocoa-800 sm:text-4xl;
+  }
+  .heading-md {
+    @apply font-serif text-2xl text-cocoa-800;
+  }
+  .prose-soft p {
+    @apply mb-4 leading-relaxed text-cocoa-600;
+  }
+  .link {
+    @apply text-blush-600 underline-offset-4 hover:underline;
+  }
+  .divider-ornament {
+    @apply flex items-center justify-center gap-3 text-champagne-400;
+  }
+  .divider-ornament::before,
+  .divider-ornament::after {
+    content: '';
+    @apply h-px w-12 bg-champagne-300;
+  }
+  .skeleton {
+    @apply animate-pulse rounded-xl bg-blush-100;
+  }
+
+  /* ---------- tabelas do painel ---------- */
+  .table-admin {
+    @apply w-full text-left text-sm;
+  }
+  .table-admin th {
+    @apply border-b border-blush-100 px-4 py-3 text-xs font-semibold uppercase tracking-wider text-cocoa-400;
+  }
+  .table-admin td {
+    @apply border-b border-blush-50 px-4 py-3 align-middle;
+  }
+  .table-admin tbody tr {
+    @apply transition hover:bg-blush-50/60;
+  }
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+  .bg-paper {
+    background-color: #fff9f4;
+    background-image: radial-gradient(rgba(212, 180, 131, 0.14) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+}

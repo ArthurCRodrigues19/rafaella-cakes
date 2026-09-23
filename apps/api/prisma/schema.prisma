@@ -1,0 +1,431 @@
+// =============================================================
+//  Rafaella Cakes — modelo de dados
+//  Todos os valores monetários são armazenados em CENTAVOS (Int)
+//  para evitar erros de arredondamento com ponto flutuante.
+// =============================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  RECEIVED
+  IN_PREPARATION
+  READY
+  OUT_FOR_DELIVERY
+  DELIVERED
+  CANCELED
+}
+
+enum FulfillmentType {
+  DELIVERY
+  PICKUP
+}
+
+enum PaymentMethod {
+  PIX
+  CARD
+}
+
+enum PaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELED
+  REFUNDED
+}
+
+enum CustomOrderStatus {
+  REQUESTED
+  QUOTED
+  APPROVED
+  IN_PREPARATION
+  READY
+  DELIVERED
+  REJECTED
+  CANCELED
+}
+
+// ---------------------------------------------------------------
+// Usuários e conta
+// ---------------------------------------------------------------
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String?
+  googleId     String?  @unique
+  phone        String?
+  role         Role     @default(CUSTOMER)
+  /// Incrementado para invalidar todas as sessões (logout geral / troca de senha)
+  tokenVersion Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  addresses           Address[]
+  favorites           Favorite[]
+  reviews             Review[]
+  orders              Order[]
+  customOrders        CustomOrder[]
+  cartItems           CartItem[]
+  passwordResetTokens PasswordResetToken[]
+}
+
+model Address {
+  id           String   @id @default(cuid())
+  userId       String
+  label        String   @default("Casa")
+  recipient    String
+  zipCode      String
+  street       String
+  number       String
+  complement   String?
+  neighborhood String
+  city         String
+  state        String
+  reference    String?
+  isDefault    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// ---------------------------------------------------------------
+// Catálogo
+// ---------------------------------------------------------------
+
+model Category {
+  id          String  @id @default(cuid())
+  name        String
+  slug        String  @unique
+  description String?
+  imageUrl    String?
+  sortOrder   Int     @default(0)
+
+  products Product[]
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  name             String
+  slug             String   @unique
+  shortDescription String?
+  description      String   @db.Text
+  categoryId       String
+  /// Menor preço entre as variações ativas (desnormalizado para ordenar/filtrar)
+  priceFromCents   Int      @default(0)
+  isActive         Boolean  @default(true)
+  isFeatured       Boolean  @default(false)
+  /// Prazo mínimo de produção específico (dias). Nulo = usa o padrão da loja.
+  leadTimeDays     Int?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  category  Category         @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images    ProductImage[]
+  variants  ProductVariant[]
+  reviews   Review[]
+  favorites Favorite[]
+  orderItems OrderItem[]
+
+  @@index([categoryId])
+  @@index([isActive, isFeatured])
+}
+
+model ProductImage {
+  id        String @id @default(cuid())
+  productId String
+  url       String
+  alt       String
+  sortOrder Int    @default(0)
+
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+model ProductVariant {
+  id         String  @id @default(cuid())
+  productId  String
+  /// Nome exibido (ex.: "Médio · 20 fatias")
+  name       String
+  size       String?
+  flavor     String?
+  priceCents Int
+  /// Estoque disponível. Nulo = produzido sob demanda (sem limite).
+  stock      Int?
+  isActive   Boolean @default(true)
+  sortOrder  Int     @default(0)
+
+  product    Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([productId])
+}
+
+model Favorite {
+  userId    String
+  productId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@id([userId, productId])
+}
+
+model Review {
+  id         String   @id @default(cuid())
+  productId  String?
+  userId     String?
+  authorName String
+  rating     Int
+  comment    String   @db.Text
+  /// Só aparece no site após aprovação no painel
+  isApproved Boolean  @default(false)
+  /// Aparece como depoimento na home/galeria
+  isFeatured Boolean  @default(false)
+  createdAt  DateTime @default(now())
+
+  product Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
+  user    User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId])
+  @@index([productId, isApproved])
+}
+
+model CartItem {
+  id        String   @id @default(cuid())
+  userId    String
+  variantId String
+  quantity  Int
+  updatedAt DateTime @updatedAt
+
+  user    User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  variant ProductVariant @relation(fields: [variantId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, variantId])
+}
+
+// ---------------------------------------------------------------
+// Pedidos da loja
+// ---------------------------------------------------------------
+
+model Order {
+  id              String          @id @default(cuid())
+  /// Número sequencial legível (exibido como RC01001)
+  code            Int             @unique @default(autoincrement())
+  userId          String
+  status          OrderStatus     @default(PENDING_PAYMENT)
+  fulfillmentType FulfillmentType
+  paymentMethod   PaymentMethod
+  /// Data agendada de entrega/retirada (armazenada ao meio-dia UTC)
+  scheduledDate   DateTime
+  subtotalCents   Int
+  shippingCents   Int             @default(0)
+  discountCents   Int             @default(0)
+  totalCents      Int
+  customerName    String
+  customerEmail   String
+  customerPhone   String?
+  /// Cópia do endereço no momento da compra
+  shippingAddress Json?
+  shippingZone    String?
+  notes           String?         @db.Text
+  customOrderId   String?         @unique
+  paidAt          DateTime?
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Restrict)
+  customOrder   CustomOrder?         @relation(fields: [customOrderId], references: [id], onDelete: SetNull)
+  items         OrderItem[]
+  statusHistory OrderStatusHistory[]
+  payments      Payment[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([paidAt])
+}
+
+model OrderItem {
+  id             String  @id @default(cuid())
+  orderId        String
+  productId      String?
+  variantId      String?
+  /// Cópias do momento da compra (o histórico não muda se o produto for editado)
+  productName    String
+  variantName    String?
+  imageUrl       String?
+  unitPriceCents Int
+  quantity       Int
+  totalCents     Int
+
+  order   Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  product Product?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  variant ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@index([orderId])
+  @@index([productId])
+}
+
+model OrderStatusHistory {
+  id        String      @id @default(cuid())
+  orderId   String
+  status    OrderStatus
+  note      String?
+  createdAt DateTime    @default(now())
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model Payment {
+  id                String        @id @default(cuid())
+  orderId           String
+  method            PaymentMethod
+  status            PaymentStatus @default(PENDING)
+  amountCents       Int
+  /// "mercadopago" ou "mock" (modo de demonstração)
+  provider          String
+  providerPaymentId String?       @unique
+  statusDetail      String?
+  pixQrCode         String?       @db.Text
+  pixQrCodeBase64   String?       @db.Text
+  pixTicketUrl      String?
+  pixExpiresAt      DateTime?
+  raw               Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+// ---------------------------------------------------------------
+// Encomendas personalizadas (orçamentos)
+// ---------------------------------------------------------------
+
+model CustomOrder {
+  id                String            @id @default(cuid())
+  code              Int               @unique @default(autoincrement())
+  userId            String?
+  customerName      String
+  customerEmail     String
+  customerPhone     String
+  eventType         String
+  eventDate         DateTime
+  guests            Int
+  size              String?
+  flavor            String
+  filling           String?
+  frosting          String?
+  fulfillmentType   FulfillmentType   @default(PICKUP)
+  notes             String?           @db.Text
+  referenceImageUrl String?
+  status            CustomOrderStatus @default(REQUESTED)
+  quotedPriceCents  Int?
+  /// Mensagem da Rafaella para o cliente junto com o orçamento
+  quoteMessage      String?           @db.Text
+  /// Anotações internas (não aparecem para o cliente)
+  adminNotes        String?           @db.Text
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  user          User?                      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  order         Order?
+  statusHistory CustomOrderStatusHistory[]
+
+  @@index([status])
+  @@index([customerEmail])
+}
+
+model CustomOrderStatusHistory {
+  id            String            @id @default(cuid())
+  customOrderId String
+  status        CustomOrderStatus
+  note          String?
+  createdAt     DateTime          @default(now())
+
+  customOrder CustomOrder @relation(fields: [customOrderId], references: [id], onDelete: Cascade)
+
+  @@index([customOrderId])
+}
+
+// ---------------------------------------------------------------
+// Configurações e conteúdo
+// ---------------------------------------------------------------
+
+model ShippingZone {
+  id            String   @id @default(cuid())
+  name          String
+  feeCents      Int
+  /// Faixa de CEP (8 dígitos, inclusiva). Opcional.
+  cepStart      String?
+  cepEnd        String?
+  /// Bairros atendidos (comparação sem acento e sem maiúsculas)
+  neighborhoods String[]
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+}
+
+model GalleryImage {
+  id        String   @id @default(cuid())
+  url       String
+  alt       String
+  caption   String?
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+}
+
+/// Linha única (id = 1) com as configurações da loja
+model StoreSettings {
+  id                Int      @id @default(1)
+  storeName         String   @default("Rafaella Cakes")
+  phone             String   @default("")
+  whatsapp          String   @default("")
+  email             String   @default("")
+  instagramHandle   String   @default("")
+  addressLine       String   @default("")
+  city              String   @default("")
+  mapQuery          String   @default("")
+  openingHours      String   @default("")
+  aboutText         String   @default("") @db.Text
+  /// Prazo mínimo (dias) para pedidos da loja
+  minLeadDays       Int      @default(2)
+  /// Prazo mínimo (dias) para encomendas personalizadas
+  customMinLeadDays Int      @default(7)
+  /// Dias da semana com entrega/retirada (0 = domingo ... 6 = sábado)
+  openWeekdays      Int[]    @default([2, 3, 4, 5, 6])
+  pickupEnabled     Boolean  @default(true)
+  deliveryEnabled   Boolean  @default(true)
+  updatedAt         DateTime @updatedAt
+}

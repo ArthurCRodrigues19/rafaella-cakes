@@ -1,0 +1,39 @@
+{
+  "name": "rafaella-cakes",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Rafaella Cakes — loja virtual e encomendas de uma doceria artesanal",
+  "workspaces": [
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "dev": "concurrently -k -n api,web -c magenta,cyan \"npm run dev -w apps/api\" \"npm run dev -w apps/web\"",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -w apps/api && npm run build -w apps/web",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
+    "db:migrate": "npm run prisma:migrate -w apps/api",
+    "db:seed": "npm run seed -w apps/api",
+    "db:reset": "npm run db:reset -w apps/api",
+    "db:studio": "npm run prisma:studio -w apps/api",
+    "admin:create": "npm run admin:create -w apps/api --",
+    "setup": "npm run db:migrate && npm run db:seed",
+    "demo": "npm run build -w apps/web && npm run demo:start",
+    "demo:start": "concurrently -k -n api,web -c magenta,cyan \"npm run dev -w apps/api\" \"npm run start -w apps/web\"",
+    "tunnel": "node scripts/tunnel.mjs"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.0"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "allowScripts": {
+    "@prisma/client@6.19.3": true,
+    "@prisma/engines@6.19.3": true,
+    "esbuild@0.28.2": true,
+    "prisma@6.19.3": true
+  }
+}

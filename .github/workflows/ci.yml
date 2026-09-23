@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Tipos, banco e build
+    runs-on: ubuntu-latest
+
+    # Banco temporário para validar migrations e seed
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: rafaella
+          POSTGRES_PASSWORD: rafaella
+          POSTGRES_DB: rafaella_cakes
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U rafaella"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      NEXT_TELEMETRY_DISABLED: 1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Criar .env de teste
+        run: cp .env.example .env
+
+      - name: Verificar tipos da API
+        run: npm run typecheck -w apps/api
+
+      - name: Aplicar migrations
+        run: npm run prisma:deploy -w apps/api
+
+      - name: Rodar seed
+        run: npm run seed -w apps/api
+
+      - name: Build do site
+        run: npm run build -w apps/web
