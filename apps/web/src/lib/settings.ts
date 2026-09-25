@@ -7,7 +7,7 @@ export const DEFAULT_SETTINGS: StoreSettings = {
   phone: '(11) 3456-7890',
   whatsapp: '5511987654321',
   email: 'contato@rafaellacakes.com.br',
-  instagramHandle: 'rafaellacakes',
+  instagramHandle: 'https_rafaellarib',
   addressLine: 'Rua das Flores, 123 — Vila Madalena',
   city: 'São Paulo — SP',
   mapQuery: 'Vila Madalena, São Paulo - SP',

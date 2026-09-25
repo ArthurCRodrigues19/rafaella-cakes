@@ -1,4 +1,5 @@
 import { env } from '../../config/env';
+import { getSettings } from '../settings/settings.service';
 
 /**
  * Feed do Instagram via Instagram API (Graph API da Meta).
@@ -26,7 +27,7 @@ let cache: { at: number; posts: InstagramPost[]; source: 'instagram' | 'mock' } 
 let token = env.INSTAGRAM_ACCESS_TOKEN;
 let lastRefresh = 0;
 
-const MOCK_POSTS: InstagramPost[] = [
+const MOCK_POSTS: Omit<InstagramPost, 'permalink'>[] = [
   ['photo-1578985545062-69928b1d9587', 'Bolo de chocolate com ganache e frutas vermelhas 🍫🍓 #rafaellacakes'],
   ['photo-1535141192574-5d4897c12636', 'Naked cake para um casamento no campo 💍🌿'],
   ['photo-1488477181946-6428a0291777', 'Tortinhas de frutas frescas saindo do forno ✨'],
@@ -39,10 +40,16 @@ const MOCK_POSTS: InstagramPost[] = [
   id: `mock-${i}`,
   caption,
   mediaUrl: `https://images.unsplash.com/${photo}?auto=format&fit=crop&w=600&h=600&q=80`,
-  permalink: 'https://www.instagram.com/',
   timestamp: new Date(Date.now() - i * 2 * 86_400_000).toISOString(),
   mediaType: 'IMAGE' as const,
 }));
+
+/** Posts de exemplo apontando para o perfil configurado no painel (Configurações → Instagram). */
+async function mockPosts(limit = MOCK_POSTS.length): Promise<InstagramPost[]> {
+  const { instagramHandle } = await getSettings();
+  const permalink = instagramHandle ? `https://www.instagram.com/${instagramHandle}/` : 'https://www.instagram.com/';
+  return MOCK_POSTS.slice(0, limit).map((p) => ({ ...p, permalink }));
+}
 
 /** Renova o token de longa duração no máximo 1x por dia. */
 async function maybeRefreshToken() {
@@ -64,10 +71,8 @@ async function maybeRefreshToken() {
 export async function getInstagramFeed(): Promise<{ posts: InstagramPost[]; source: 'instagram' | 'mock' }> {
   if (cache && Date.now() - cache.at < CACHE_MS) return cache;
 
-  if (!token) {
-    cache = { at: Date.now(), posts: MOCK_POSTS.slice(0, env.INSTAGRAM_POSTS_LIMIT), source: 'mock' };
-    return cache;
-  }
+  // Sem token: exemplos, sem cache (assim uma troca do @ no painel aparece logo)
+  if (!token) return { posts: await mockPosts(env.INSTAGRAM_POSTS_LIMIT), source: 'mock' };
 
   try {
     await maybeRefreshToken();
@@ -103,7 +108,7 @@ export async function getInstagramFeed(): Promise<{ posts: InstagramPost[]; sour
     console.warn('[instagram] usando posts de exemplo:', (error as Error).message);
     // Se falhar, mantém o último cache real ou usa exemplos (por 5 min)
     if (cache?.source === 'instagram') return cache;
-    cache = { at: Date.now() - CACHE_MS + 5 * 60 * 1000, posts: MOCK_POSTS, source: 'mock' };
+    cache = { at: Date.now() - CACHE_MS + 5 * 60 * 1000, posts: await mockPosts(), source: 'mock' };
     return cache;
   }
 }

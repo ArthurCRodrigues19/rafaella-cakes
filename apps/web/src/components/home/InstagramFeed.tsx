@@ -1,4 +1,5 @@
 import { serverGet } from '@/lib/server-api';
+import { DEFAULT_SETTINGS } from '@/lib/settings';
 import type { InstagramPost } from '@/lib/types';
 import { SafeImage } from '../SafeImage';
 import { InstagramIcon } from '../icons';
@@ -9,7 +10,8 @@ export async function InstagramFeed({ handle }: { handle: string }) {
   const feed = await serverGet<{ posts: InstagramPost[]; source: 'instagram' | 'mock' }>('/instagram', 600);
   const posts = feed?.posts ?? [];
   if (!posts.length) return null;
-  const profileUrl = handle ? `https://instagram.com/${handle}` : 'https://instagram.com';
+  const username = handle || DEFAULT_SETTINGS.instagramHandle;
+  const profileUrl = `https://instagram.com/${username}`;
 
   return (
     <section className="container-page py-20" aria-labelledby="instagram-title">
@@ -20,7 +22,7 @@ export async function InstagramFeed({ handle }: { handle: string }) {
           <>
             Novidades, encomendas especiais e um pouquinho da nossa cozinha em{' '}
             <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="link">
-              @{handle || 'rafaellacakes'}
+              @{username}
             </a>
           </>
         }
@@ -50,7 +52,7 @@ export async function InstagramFeed({ handle }: { handle: string }) {
       </ul>
       <div className="mt-8 text-center">
         <a href={profileUrl} target="_blank" rel="noopener noreferrer" className="btn-outline">
-          <InstagramIcon /> Seguir @{handle || 'rafaellacakes'}
+          <InstagramIcon /> Seguir @{username}
         </a>
       </div>
     </section>
